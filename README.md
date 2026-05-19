@@ -1,0 +1,40 @@
+# 链动小铺货源增强筛选 Edge 扩展
+
+这是一个不依赖油猴的本地 Edge 扩展。打开链动小铺货源广场页面后，扩展会注入一个悬浮筛选面板，通过原站接口拉取数据，并在浏览器本地做筛选、排序和分页展示。
+
+## 安装
+
+1. 打开 Edge，访问 `edge://extensions/`。
+2. 打开左侧的 `开发人员模式`。
+3. 点击 `加载解压缩的扩展`。
+4. 选择本目录：`D:\py_test\ldxp\edge-ldxp-filter`。
+5. 登录链动小铺后台，打开 `https://www.ldxp.cn/merchant/my_parent/source_square` 或 `https://pay.ldxp.cn/merchant/my_parent/source_square`。
+
+## 使用
+
+- `开始拉取`：按设置的页数调用 `/merchantApi/MyParent/searchGoodsList`。
+- `筛选当前数据`：不重新请求接口，只对已经拉取的数据重新筛选。
+- `停止拉取`：拉取过程中再次点击按钮会中止请求。
+- 关键词、分类关键词和商家名称筛选都不区分大小写。
+- 面板标题栏可以拖动，右下角的斜纹手柄可以调整大小，右上角可以最小化成悬浮小图标或关闭；当前界面已压缩筛选区，把更多空间留给下方结果表格。
+- 最小化后的悬浮小图标也可以拖拽移动，单击小图标恢复完整面板。
+- 扩展图标和最小化悬浮图标使用同一套本地 `assets/icon-*.png` 图标；每页显示可选 `5/10/15/20/25/30`，默认 `10`。
+- 作者卡网和感谢小纸条固定在面板底栏，不会被结果表格或窗口缩放挤没。
+- 已按真实接口字段精简：商品名 `name`、分类 `category.name`、商家 `user.nickname`、库存 `stock_count`、对接状态 `child`、上架状态 `status`、价格 `price/cost_price`。
+- 当前版本会尝试从 `localStorage` 读取 `auth-token` 作为 `Merchant-Token`，所以必须先在原站登录。
+
+## 作者小纸条
+
+觉得好用的话，下次可以来哇咔咔这里补一单小小感谢；挑最便宜的商品也完全 OK，主要是让哇咔咔开心一下。
+
+作者卡网：`https://pay.ldxp.cn/shop/V2YZIFWM`
+
+## 可调整项
+
+如果链动小铺接口字段发生变化，优先修改 `content.js` 里的这些函数：
+
+- `buildRequestBody`
+- `normalizeList`
+- `getProductTitle`
+- `getCostPrice`
+- `getConnectedLabel`

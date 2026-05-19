@@ -1,0 +1,9 @@
+*.zip
+*.crx
+*.pem
+node_modules/
+output/
+edge-profile/
+edge-real-api-profile/
+.DS_Store
+Thumbs.db
