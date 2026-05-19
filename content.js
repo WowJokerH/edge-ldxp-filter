@@ -1084,7 +1084,7 @@
 
   function minimizePanel() {
     const rect = root.getBoundingClientRect();
-    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(window.innerWidth - MINI_WIDTH - VIEWPORT_GAP, rect.left));
+    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(window.innerWidth - MINI_WIDTH - VIEWPORT_GAP, rect.right - MINI_WIDTH));
     const nextTop = Math.max(VIEWPORT_GAP, Math.min(window.innerHeight - MINI_HEIGHT - VIEWPORT_GAP, rect.top));
     root.dataset.expandedWidth = root.style.width || "";
     root.dataset.expandedPanelHeight = panelEl.style.height || "";
@@ -1102,12 +1102,13 @@
   }
 
   function expandPanel() {
+    const miniRect = root.getBoundingClientRect();
     root.classList.remove("is-minimized");
-    root.style.width = root.dataset.expandedWidth || "min(1240px, calc(100vw - 24px))";
+    root.style.width = root.dataset.expandedWidth || "min(1080px, calc(100vw - 24px))";
     panelEl.style.height = root.dataset.expandedPanelHeight || "";
     bodyEl.style.height = root.dataset.expandedBodyHeight || "";
     bodyEl.style.maxHeight = root.dataset.expandedBodyMaxHeight || "";
-    keepExpandedPanelInViewport();
+    keepExpandedPanelInViewport(miniRect.right);
   }
 
   function showAutoCapsule() {
@@ -1128,11 +1129,12 @@
     root.classList.add("is-minimized");
   }
 
-  function keepExpandedPanelInViewport() {
+  function keepExpandedPanelInViewport(anchorRight = null) {
     const rect = root.getBoundingClientRect();
+    const desiredLeft = Number.isFinite(anchorRight) ? anchorRight - rect.width : rect.left;
     const maxLeft = Math.max(VIEWPORT_GAP, window.innerWidth - rect.width - VIEWPORT_GAP);
     const maxTop = Math.max(VIEWPORT_GAP, window.innerHeight - rect.height - VIEWPORT_GAP);
-    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(rect.left, maxLeft));
+    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(desiredLeft, maxLeft));
     const nextTop = Math.max(VIEWPORT_GAP, Math.min(rect.top, maxTop));
     root.style.left = `${Math.round(nextLeft)}px`;
     root.style.top = `${Math.round(nextTop)}px`;
@@ -1173,7 +1175,7 @@
     }
 
     const edgeGap = VIEWPORT_GAP;
-    const minWidth = Math.min(760, window.innerWidth - 20);
+    const minWidth = Math.min(680, window.innerWidth - 20);
     const minHeight = 390;
     const maxWidth = Math.max(minWidth, window.innerWidth - edgeGap * 2);
     const maxHeight = Math.max(minHeight, window.innerHeight - edgeGap * 2);

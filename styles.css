@@ -24,7 +24,7 @@
   position: fixed;
   right: 12px;
   top: 70px;
-  width: min(1240px, calc(100vw - 24px));
+  width: min(1080px, calc(100vw - 24px));
   z-index: 2147483647;
 }
 
@@ -41,11 +41,11 @@
   box-shadow: var(--ldxp-shadow);
   display: flex;
   flex-direction: column;
-  height: min(760px, calc(100vh - 90px));
+  height: min(680px, calc(100vh - 90px));
   max-height: calc(100vh - 16px);
   max-width: calc(100vw - 20px);
   min-height: 240px;
-  min-width: min(760px, calc(100vw - 20px));
+  min-width: min(680px, calc(100vw - 20px));
   overflow: hidden;
   position: relative;
 }
