@@ -2,12 +2,14 @@
 
 这是一个不依赖油猴的本地 Edge 扩展。打开链动小铺货源广场页面后，扩展会注入一个悬浮筛选面板，通过原站接口拉取数据，并在浏览器本地做筛选、排序和分页展示。
 
+项目地址：`https://github.com/WowJokerH/edge-ldxp-filter`
+
 ## 安装
 
 1. 打开 Edge，访问 `edge://extensions/`。
 2. 打开左侧的 `开发人员模式`。
 3. 点击 `加载解压缩的扩展`。
-4. 选择本目录：`D:\py_test\ldxp\edge-ldxp-filter`。
+4. 选择下载并解压后的插件文件夹：`edge-ldxp-filter`。
 5. 登录链动小铺后台，打开 `https://www.ldxp.cn/merchant/my_parent/source_square` 或 `https://pay.ldxp.cn/merchant/my_parent/source_square`。
 
 ## 使用
