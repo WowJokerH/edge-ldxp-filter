@@ -1,6 +1,6 @@
 # 链动小铺货源增强筛选 Edge 扩展
 
-这是一个不依赖油猴的本地 Edge 扩展。打开链动小铺货源广场页面后，扩展会注入一个悬浮筛选面板，通过原站接口拉取数据，并在浏览器本地做筛选、排序和分页展示。
+这是一个不依赖油猴的本地 Edge 扩展。打开链动小铺相关页面后，扩展会自动显示一个悬浮小胶囊；点击胶囊展开筛选面板后，可以通过原站接口拉取数据，并在浏览器本地做筛选、排序和分页展示。
 
 项目地址：`https://github.com/WowJokerH/edge-ldxp-filter`
 
@@ -10,11 +10,12 @@
 2. 打开左侧的 `开发人员模式`。
 3. 点击 `加载解压缩的扩展`。
 4. 选择下载并解压后的插件文件夹：`edge-ldxp-filter`。
-5. 登录链动小铺后台，打开 `https://www.ldxp.cn/merchant/my_parent/source_square` 或 `https://pay.ldxp.cn/merchant/my_parent/source_square`。
+5. 登录链动小铺后台，打开 `https://www.ldxp.cn/` 或 `https://pay.ldxp.cn/` 下的页面；识别到站点后会先显示右上角悬浮小胶囊，点击后展开完整面板。货源筛选推荐进入 `https://www.ldxp.cn/merchant/my_parent/source_square` 或 `https://pay.ldxp.cn/merchant/my_parent/source_square`。
 
 ## 使用
 
 - `开始拉取`：按设置的页数调用 `/merchantApi/MyParent/searchGoodsList`。
+- 识别到 `pay.ldxp.cn` 或 `www.ldxp.cn` 后会自动显示可拖拽悬浮小胶囊，不会默认展开遮挡页面。
 - `筛选当前数据`：不重新请求接口，只对已经拉取的数据重新筛选。
 - `停止拉取`：拉取过程中再次点击按钮会中止请求。
 - 关键词、分类关键词和商家名称筛选都不区分大小写。

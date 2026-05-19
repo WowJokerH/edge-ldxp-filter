@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "链动小铺货源增强筛选",
-  "version": "1.0.13",
-  "description": "在链动小铺货源广场页面添加多页拉取、本地筛选、排序和结果表格。",
+  "version": "1.0.14",
+  "description": "在链动小铺页面自动显示悬浮胶囊，展开后可多页拉取、本地筛选、排序和查看货源。",
   "icons": {
     "16": "assets/icon-16.png",
     "32": "assets/icon-32.png",
@@ -27,8 +27,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://pay.ldxp.cn/merchant/my_parent/source_square*",
-        "https://www.ldxp.cn/merchant/my_parent/source_square*"
+        "https://pay.ldxp.cn/*",
+        "https://www.ldxp.cn/*"
       ],
       "js": [
         "content.js"

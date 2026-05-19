@@ -5,8 +5,18 @@
   const API_URL = "/merchantApi/MyParent/searchGoodsList";
   const MAX_FETCH_PAGES = 500;
   const DEFAULT_FETCH_SIZE = 50;
+  const RECOGNIZED_HOSTS = new Set(["pay.ldxp.cn", "www.ldxp.cn"]);
+  const MINI_WIDTH = 62;
+  const MINI_HEIGHT = 62;
+  const VIEWPORT_GAP = 8;
+  const AUTO_MINI_RIGHT = 16;
+  const AUTO_MINI_TOP = 96;
 
   if (document.getElementById(ROOT_ID)) {
+    return;
+  }
+
+  if (!RECOGNIZED_HOSTS.has(location.hostname)) {
     return;
   }
 
@@ -705,10 +715,10 @@
       miniDragState.moved = true;
     }
 
-    const miniWidth = 56;
-    const miniHeight = 56;
-    const nextLeft = Math.max(8, Math.min(window.innerWidth - miniWidth - 8, miniDragState.left + dx));
-    const nextTop = Math.max(8, Math.min(window.innerHeight - miniHeight - 8, miniDragState.top + dy));
+    const miniWidth = MINI_WIDTH;
+    const miniHeight = MINI_HEIGHT;
+    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(window.innerWidth - miniWidth - VIEWPORT_GAP, miniDragState.left + dx));
+    const nextTop = Math.max(VIEWPORT_GAP, Math.min(window.innerHeight - miniHeight - VIEWPORT_GAP, miniDragState.top + dy));
     root.style.left = `${nextLeft}px`;
     root.style.top = `${nextTop}px`;
     root.style.right = "auto";
@@ -728,10 +738,8 @@
 
   function minimizePanel() {
     const rect = root.getBoundingClientRect();
-    const miniWidth = 62;
-    const miniHeight = 62;
-    const nextLeft = Math.max(8, Math.min(window.innerWidth - miniWidth - 8, rect.left));
-    const nextTop = Math.max(8, Math.min(window.innerHeight - miniHeight - 8, rect.top));
+    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(window.innerWidth - MINI_WIDTH - VIEWPORT_GAP, rect.left));
+    const nextTop = Math.max(VIEWPORT_GAP, Math.min(window.innerHeight - MINI_HEIGHT - VIEWPORT_GAP, rect.top));
     root.dataset.expandedWidth = root.style.width || "";
     root.dataset.expandedPanelHeight = panelEl.style.height || "";
     root.dataset.expandedBodyHeight = bodyEl.style.height || "";
@@ -740,7 +748,7 @@
     root.style.left = `${nextLeft}px`;
     root.style.top = `${nextTop}px`;
     root.style.right = "auto";
-    root.style.width = `${miniWidth}px`;
+    root.style.width = `${MINI_WIDTH}px`;
     panelEl.style.height = "";
     bodyEl.style.height = "";
     bodyEl.style.maxHeight = "";
@@ -753,6 +761,36 @@
     panelEl.style.height = root.dataset.expandedPanelHeight || "";
     bodyEl.style.height = root.dataset.expandedBodyHeight || "";
     bodyEl.style.maxHeight = root.dataset.expandedBodyMaxHeight || "";
+    keepExpandedPanelInViewport();
+  }
+
+  function showAutoCapsule() {
+    const nextLeft = Math.max(VIEWPORT_GAP, window.innerWidth - MINI_WIDTH - AUTO_MINI_RIGHT);
+    const nextTop = Math.max(VIEWPORT_GAP, Math.min(window.innerHeight - MINI_HEIGHT - VIEWPORT_GAP, AUTO_MINI_TOP));
+    root.dataset.expandedWidth = "";
+    root.dataset.expandedPanelHeight = "";
+    root.dataset.expandedBodyHeight = "";
+    root.dataset.expandedBodyMaxHeight = "";
+    root.dataset.miniDragging = "";
+    root.style.left = `${nextLeft}px`;
+    root.style.top = `${nextTop}px`;
+    root.style.right = "auto";
+    root.style.width = `${MINI_WIDTH}px`;
+    panelEl.style.height = "";
+    bodyEl.style.height = "";
+    bodyEl.style.maxHeight = "";
+    root.classList.add("is-minimized");
+  }
+
+  function keepExpandedPanelInViewport() {
+    const rect = root.getBoundingClientRect();
+    const maxLeft = Math.max(VIEWPORT_GAP, window.innerWidth - rect.width - VIEWPORT_GAP);
+    const maxTop = Math.max(VIEWPORT_GAP, window.innerHeight - rect.height - VIEWPORT_GAP);
+    const nextLeft = Math.max(VIEWPORT_GAP, Math.min(rect.left, maxLeft));
+    const nextTop = Math.max(VIEWPORT_GAP, Math.min(rect.top, maxTop));
+    root.style.left = `${Math.round(nextLeft)}px`;
+    root.style.top = `${Math.round(nextTop)}px`;
+    root.style.right = "auto";
   }
 
   let resizeState = null;
@@ -788,7 +826,7 @@
       return;
     }
 
-    const edgeGap = 8;
+    const edgeGap = VIEWPORT_GAP;
     const minWidth = Math.min(760, window.innerWidth - 20);
     const minHeight = 390;
     const maxWidth = Math.max(minWidth, window.innerWidth - edgeGap * 2);
@@ -808,4 +846,5 @@
   }
 
   render();
+  showAutoCapsule();
 })();
