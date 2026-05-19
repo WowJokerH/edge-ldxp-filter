@@ -27,7 +27,16 @@
     pageSize: 10,
     loading: false,
     abortController: null,
-    lastSummary: ""
+    lastSummary: "",
+    connect: {
+      visible: false,
+      item: null,
+      categories: [],
+      loading: false,
+      submitting: false,
+      error: "",
+      form: null
+    }
   };
 
   const asText = (value) => (value === undefined || value === null ? "" : String(value));
@@ -152,6 +161,22 @@
   };
 
   const getConnectedLabel = (item) => (getConnectedKind(item) === "linked" ? "已对接" : "未对接");
+  const getConnectActionLabel = (item) => (getConnectedKind(item) === "linked" ? "查看" : "对接");
+
+  const normalizeProductLink = (url) => {
+    const text = asText(url).trim();
+    if (!text) {
+      return "";
+    }
+    try {
+      const parsed = new URL(text, location.origin);
+      return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+    } catch (_) {
+      return "";
+    }
+  };
+
+  const getConnectedLink = (item) => normalizeProductLink(item.child?.link);
 
   const includesText = (source, query) => {
     if (!query) {
@@ -316,6 +341,7 @@
       </div>
       <div class="ldxp-resize-handle" title="拖动调整面板大小"></div>
     </div>
+    <div class="ldxp-connect-modal" data-role="connectModal" hidden></div>
   `;
   document.body.appendChild(root);
 
@@ -329,6 +355,7 @@
   const summaryEl = $('[data-role="summary"]');
   const pageInfoEl = $('[data-role="pageInfo"]');
   const fetchButton = $('[data-action="fetch"]');
+  const connectModalEl = $('[data-role="connectModal"]');
 
   const field = (name) => $(`[data-field="${name}"]`);
 
@@ -362,13 +389,13 @@
     keywords: filters.keyword
   });
 
-  const fetchPage = async (page, filters, signal) => {
+  const postMerchantApi = async (url, body, signal) => {
     const token = getToken();
     if (!token) {
       throw new Error("没有在 localStorage 中找到 auth-token，请先登录链动小铺后台。");
     }
 
-    const response = await fetch(API_URL, {
+    const response = await fetch(url, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -376,7 +403,7 @@
         "Accept": "application/json, text/plain, */*",
         "Merchant-Token": token
       },
-      body: JSON.stringify(buildRequestBody(page, filters)),
+      body: JSON.stringify(body),
       signal
     });
 
@@ -389,6 +416,11 @@
       throw new Error(payload.msg || payload.message || `接口返回异常：${payload.code}`);
     }
 
+    return payload;
+  };
+
+  const fetchPage = async (page, filters, signal) => {
+    const payload = await postMerchantApi(API_URL, buildRequestBody(page, filters), signal);
     return normalizeList(payload);
   };
 
@@ -499,6 +531,8 @@
         const statusKind = getStatusKind(item);
         const connectedLabel = getConnectedLabel(item);
         const connectedKind = getConnectedKind(item);
+        const connectActionLabel = getConnectActionLabel(item);
+        const connectedLink = getConnectedLink(item);
         const sales = getSales(item);
         return `
           <tr>
@@ -520,7 +554,15 @@
             <td><span class="ldxp-number ${stock === null ? "is-unknown" : stock > 0 ? "is-ok" : "is-empty"}">${stockText}</span></td>
             <td><span class="ldxp-number ${sales === null ? "is-unknown" : ""}">${sales === null ? "-" : sales}</span></td>
             <td><span class="ldxp-badge ldxp-status-${escapeHtml(statusKind)}">${escapeHtml(statusLabel)}</span></td>
-            <td><span class="ldxp-badge ldxp-connect-${escapeHtml(connectedKind)}">${escapeHtml(connectedLabel)}</span></td>
+            <td>
+              ${
+                connectedKind === "linked" && connectedLink
+                  ? `<a class="ldxp-connect-action ldxp-connect-${escapeHtml(connectedKind)}" href="${escapeHtml(connectedLink)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(`${connectedLabel}，打开已对接商品`)}">${escapeHtml(connectActionLabel)}</a>`
+                  : connectedKind === "unlinked"
+                    ? `<button class="ldxp-connect-action ldxp-connect-${escapeHtml(connectedKind)}" data-action="connect" data-id="${escapeHtml(id)}" title="打开对接配置">${escapeHtml(connectActionLabel)}</button>`
+                    : `<span class="ldxp-badge ldxp-connect-${escapeHtml(connectedKind)}">${escapeHtml(connectedLabel)}</span>`
+              }
+            </td>
           </tr>
         `;
       })
@@ -593,6 +635,304 @@
     render();
   };
 
+  const getDefaultConnectForm = (item) => {
+    const cost = getCostPrice(item) ?? 0;
+    const minPrice = getMinimumSalePrice(item);
+    const addRate = minPrice !== null && cost > 0
+      ? Math.max(0, ((minPrice - cost) / cost) * 100)
+      : 10;
+
+    return normalizeConnectForm({
+      name: getProductTitle(item),
+      name_sync: 1,
+      description: item.description || "",
+      description_sync: 1,
+      category_id: 0,
+      add_type: 1,
+      add_rate: Number(addRate.toFixed(2)),
+      add_price: 0,
+      price: 0
+    }, item);
+  };
+
+  const getMinimumSalePrice = (item) => {
+    const minPrice = asNumber(item.agent_price_limit, null);
+    return minPrice !== null && minPrice > 0 ? minPrice : null;
+  };
+
+  const roundPrice = (value) => {
+    const num = asNumber(value, 0);
+    return Number((Math.ceil(Math.max(0, num) * 100) / 100).toFixed(2));
+  };
+
+  const calculateConnectPrice = (form, item) => {
+    const cost = getCostPrice(item) ?? 0;
+    const minPrice = getMinimumSalePrice(item);
+    let calculated = cost;
+
+    if (form.add_type === 1) {
+      calculated = cost * (1 + Math.max(0, asNumber(form.add_rate, 0)) / 100);
+    } else if (form.add_type === 2) {
+      calculated = cost + Math.max(0, asNumber(form.add_price, 0));
+    }
+
+    const rawPrice = roundPrice(calculated);
+    const raised = minPrice !== null && rawPrice < minPrice;
+    return {
+      price: raised ? roundPrice(minPrice) : rawPrice,
+      rawPrice,
+      minPrice,
+      raised
+    };
+  };
+
+  const normalizeConnectForm = (form, item) => {
+    const next = {
+      ...form,
+      add_type: asNumber(form.add_type, 1),
+      add_rate: Math.max(0, asNumber(form.add_rate, 0)),
+      add_price: Math.max(0, asNumber(form.add_price, 0))
+    };
+    next.price = calculateConnectPrice(next, item).price;
+    return next;
+  };
+
+  const findItemById = (id) =>
+    state.raw.find((item) => String(getProductId(item)) === String(id)) ||
+    state.filtered.find((item) => String(getProductId(item)) === String(id));
+
+  const openConnectModal = async (item) => {
+    if (!item) {
+      setStatus("没有找到要对接的商品", "error");
+      return;
+    }
+
+    state.connect.visible = true;
+    state.connect.item = item;
+    state.connect.categories = [];
+    state.connect.loading = true;
+    state.connect.submitting = false;
+    state.connect.error = "";
+    state.connect.form = getDefaultConnectForm(item);
+    renderConnectModal();
+
+    try {
+      const payload = await postMerchantApi("/merchantApi/MyParent/goodsCategory", {
+        goods_type: item.goods_type || ""
+      });
+      state.connect.categories = Array.isArray(payload.data) ? payload.data : [];
+      state.connect.error = "";
+    } catch (error) {
+      state.connect.error = error.message || "分类读取失败";
+    } finally {
+      state.connect.loading = false;
+      renderConnectModal();
+    }
+  };
+
+  const closeConnectModal = () => {
+    state.connect.visible = false;
+    state.connect.item = null;
+    state.connect.categories = [];
+    state.connect.loading = false;
+    state.connect.submitting = false;
+    state.connect.error = "";
+    state.connect.form = null;
+    renderConnectModal();
+  };
+
+  const readConnectForm = () => {
+    const read = (name) => connectModalEl.querySelector(`[data-connect-field="${name}"]`);
+    const current = state.connect.form || {};
+    const form = {
+      name: read("name")?.value.trim() || "",
+      name_sync: read("name_sync")?.checked ? 1 : 0,
+      description: current.description || "",
+      description_sync: read("description_sync")?.checked ? 1 : 0,
+      category_id: asNumber(read("category_id")?.value, current.category_id ?? 0),
+      add_type: asNumber(read("add_type")?.value, current.add_type ?? 1),
+      add_rate: asNumber(read("add_rate")?.value, current.add_rate ?? 0),
+      add_price: asNumber(read("add_price")?.value, current.add_price ?? 0),
+      price: asNumber(read("price")?.value, current.price ?? 0)
+    };
+    return state.connect.item ? normalizeConnectForm(form, state.connect.item) : form;
+  };
+
+  const renderMinimumPriceTip = (result) => {
+    if (result.minPrice === null) {
+      return "";
+    }
+
+    const text = result.raised
+      ? `商家要求最低售价 ¥${money(result.minPrice)}，已自动提升到最低价。`
+      : `商家要求最低售价 ¥${money(result.minPrice)}，当前销售价已满足。`;
+    return `<div class="ldxp-connect-min-tip" data-role="connectMinTip" data-raised="${result.raised ? "1" : "0"}">${escapeHtml(text)}</div>`;
+  };
+
+  const refreshConnectPriceFields = () => {
+    if (!state.connect.visible || !state.connect.item || !state.connect.form) {
+      return;
+    }
+
+    state.connect.form = readConnectForm();
+    const result = calculateConnectPrice(state.connect.form, state.connect.item);
+    const priceInput = connectModalEl.querySelector('[data-connect-field="price"]');
+    const minTip = connectModalEl.querySelector('[data-role="connectMinTip"]');
+    if (priceInput) {
+      priceInput.value = String(result.price);
+    }
+    if (minTip) {
+      minTip.textContent = result.raised
+        ? `商家要求最低售价 ¥${money(result.minPrice)}，已自动提升到最低价。`
+        : `商家要求最低售价 ¥${money(result.minPrice)}，当前销售价已满足。`;
+      minTip.dataset.raised = result.raised ? "1" : "0";
+    }
+  };
+
+  const submitConnect = async () => {
+    if (!state.connect.item || state.connect.submitting) {
+      return;
+    }
+
+    state.connect.form = readConnectForm();
+    state.connect.submitting = true;
+    state.connect.error = "";
+    renderConnectModal();
+
+    try {
+      const payload = await postMerchantApi("/merchantApi/MyParent/connectGoods", {
+        ...state.connect.form,
+        goods_id: getProductId(state.connect.item),
+        name_sync: state.connect.form.name_sync ? 1 : 0,
+        description_sync: state.connect.form.description_sync ? 1 : 0
+      });
+
+      if (payload.data && typeof payload.data === "object") {
+        state.connect.item.child = payload.data;
+      } else {
+        state.connect.item.child = state.connect.item.child || { link: "" };
+      }
+
+      setStatus("对接成功，建议重新拉取刷新状态", "ok");
+      closeConnectModal();
+      render();
+    } catch (error) {
+      state.connect.error = error.message || "对接失败";
+      state.connect.submitting = false;
+      renderConnectModal();
+    }
+  };
+
+  function renderConnectModal() {
+    if (!state.connect.visible || !state.connect.item || !state.connect.form) {
+      connectModalEl.hidden = true;
+      connectModalEl.innerHTML = "";
+      return;
+    }
+
+    const item = state.connect.item;
+    const form = state.connect.form;
+    const categories = state.connect.categories;
+    const cost = getCostPrice(item);
+    const title = getProductTitle(item) || "-";
+    const disabled = state.connect.loading || state.connect.submitting ? "disabled" : "";
+    const priceResult = calculateConnectPrice(form, item);
+    const addInput = form.add_type === 1
+      ? `
+          <label>
+            <span>加价比例 %</span>
+            <input data-connect-field="add_rate" type="number" min="0" step="0.01" value="${escapeHtml(form.add_rate)}" ${disabled}>
+          </label>
+        `
+      : form.add_type === 2
+        ? `
+          <label>
+            <span>加价金额</span>
+            <input data-connect-field="add_price" type="number" min="0" step="0.01" value="${escapeHtml(form.add_price)}" ${disabled}>
+          </label>
+        `
+        : "";
+    connectModalEl.hidden = false;
+    connectModalEl.innerHTML = `
+      <div class="ldxp-connect-backdrop" data-action="connectClose"></div>
+      <div class="ldxp-connect-card" role="dialog" aria-modal="true" aria-label="商品对接配置">
+        <div class="ldxp-connect-head">
+          <div>
+            <div class="ldxp-connect-title">对接商品</div>
+            <div class="ldxp-connect-subtitle" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+          </div>
+          <button class="ldxp-icon-btn" data-action="connectClose" title="关闭">x</button>
+        </div>
+        <div class="ldxp-connect-body">
+          <label>
+            <span>商品名称</span>
+            <input data-connect-field="name" value="${escapeHtml(form.name)}" ${disabled}>
+          </label>
+          <label>
+            <span>店内分类</span>
+            <select data-connect-field="category_id" ${disabled}>
+              <option value="0">默认 / 稍后再选</option>
+              ${categories.map((category) => `<option value="${escapeHtml(category.id)}" ${String(category.id) === String(form.category_id) ? "selected" : ""}>${escapeHtml(category.name || category.title || category.id)}</option>`).join("")}
+            </select>
+          </label>
+          <label>
+            <span>加价方式</span>
+            <select data-connect-field="add_type" ${disabled}>
+              <option value="1" ${form.add_type === 1 ? "selected" : ""}>百分比加价</option>
+              <option value="2" ${form.add_type === 2 ? "selected" : ""}>固定金额加价</option>
+              <option value="3" ${form.add_type === 3 ? "selected" : ""}>与货源价一致</option>
+            </select>
+          </label>
+          ${addInput}
+          <label>
+            <span>销售价</span>
+            <input data-connect-field="price" type="number" min="0" step="0.01" value="${escapeHtml(priceResult.price)}" readonly ${disabled}>
+          </label>
+          <label class="ldxp-connect-check">
+            <input data-connect-field="name_sync" type="checkbox" ${form.name_sync ? "checked" : ""} ${disabled}>
+            <span>自动同步货源标题</span>
+          </label>
+          <label class="ldxp-connect-check">
+            <input data-connect-field="description_sync" type="checkbox" ${form.description_sync ? "checked" : ""} ${disabled}>
+            <span>自动同步货源描述</span>
+          </label>
+          <div class="ldxp-connect-tip">货源成本价：${cost === null ? "未知" : `¥${money(cost)}`}。点击确定会调用原站对接接口。</div>
+          ${renderMinimumPriceTip(priceResult)}
+          ${state.connect.error ? `<div class="ldxp-connect-error">${escapeHtml(state.connect.error)}</div>` : ""}
+        </div>
+        <div class="ldxp-connect-foot">
+          <button data-action="connectClose" ${state.connect.submitting ? "disabled" : ""}>取消</button>
+          <button class="ldxp-primary" data-action="connectSubmit" ${disabled}>${state.connect.submitting ? "正在对接..." : state.connect.loading ? "读取分类..." : "确定对接"}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  connectModalEl.addEventListener("input", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target.closest("[data-connect-field]") : null;
+    if (!target || !["add_rate", "add_price"].includes(target.dataset.connectField || "")) {
+      return;
+    }
+    refreshConnectPriceFields();
+  });
+
+  connectModalEl.addEventListener("change", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target.closest("[data-connect-field]") : null;
+    if (!target) {
+      return;
+    }
+
+    state.connect.form = readConnectForm();
+    if (target.dataset.connectField === "add_type") {
+      renderConnectModal();
+      return;
+    }
+
+    if (["add_rate", "add_price"].includes(target.dataset.connectField || "")) {
+      refreshConnectPriceFields();
+    }
+  });
+
   root.addEventListener("click", (event) => {
     if (root.dataset.miniDragging === "1") {
       root.dataset.miniDragging = "";
@@ -638,6 +978,12 @@
       expandPanel();
     } else if (action === "close") {
       root.remove();
+    } else if (action === "connect") {
+      openConnectModal(findItemById(actionTarget.dataset.id));
+    } else if (action === "connectClose") {
+      closeConnectModal();
+    } else if (action === "connectSubmit") {
+      submitConnect();
     }
   });
 
