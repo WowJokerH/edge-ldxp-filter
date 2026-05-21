@@ -4,6 +4,10 @@
 
 项目地址：`https://github.com/WowJokerH/edge-ldxp-filter`
 
+## 视频演示
+
+【链动小铺货源筛选浏览器插件】https://www.bilibili.com/video/BV1kyLb6fEWa/?share_source=copy_web&vd_source=9da43d789b00645889be19bc71b290cc
+
 ## 安装
 
 1. 打开 Edge，访问 `edge://extensions/`。
