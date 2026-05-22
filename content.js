@@ -36,10 +36,6 @@
       submitting: false,
       error: "",
       form: null
-    },
-    detail: {
-      visible: false,
-      item: null
     }
   };
 
@@ -181,8 +177,6 @@
   };
 
   const getConnectedLink = (item) => normalizeProductLink(item.child?.link);
-
-  const getDetailLink = (item) => normalizeProductLink(item?.link);
 
   const includesText = (source, query) => {
     if (!query) {
@@ -332,11 +326,10 @@
                 <th>销量</th>
                 <th>状态</th>
                 <th>关联</th>
-                <th>详情</th>
               </tr>
             </thead>
             <tbody data-role="rows">
-              <tr><td colspan="11" class="ldxp-empty">暂无结果</td></tr>
+              <tr><td colspan="10" class="ldxp-empty">暂无结果</td></tr>
             </tbody>
           </table>
         </div>
@@ -349,7 +342,6 @@
       <div class="ldxp-resize-handle" title="拖动调整面板大小"></div>
     </div>
     <div class="ldxp-connect-modal" data-role="connectModal" hidden></div>
-    <div class="ldxp-detail-modal" data-role="detailModal" hidden></div>
   `;
   document.body.appendChild(root);
 
@@ -364,7 +356,6 @@
   const pageInfoEl = $('[data-role="pageInfo"]');
   const fetchButton = $('[data-action="fetch"]');
   const connectModalEl = $('[data-role="connectModal"]');
-  const detailModalEl = $('[data-role="detailModal"]');
 
   const field = (name) => $(`[data-field="${name}"]`);
 
@@ -523,7 +514,7 @@
     pageInfoEl.textContent = `/ ${totalPages}`;
 
     if (!pageItems.length) {
-      rowsEl.innerHTML = `<tr><td colspan="11" class="ldxp-empty">暂无结果</td></tr>`;
+      rowsEl.innerHTML = `<tr><td colspan="10" class="ldxp-empty">暂无结果</td></tr>`;
       return;
     }
 
@@ -542,7 +533,6 @@
         const connectedKind = getConnectedKind(item);
         const connectActionLabel = getConnectActionLabel(item);
         const connectedLink = getConnectedLink(item);
-        const detailLink = getDetailLink(item);
         const sales = getSales(item);
         return `
           <tr>
@@ -571,13 +561,6 @@
                   : connectedKind === "unlinked"
                     ? `<button class="ldxp-connect-action ldxp-connect-${escapeHtml(connectedKind)}" data-action="connect" data-id="${escapeHtml(id)}" title="打开对接配置">${escapeHtml(connectActionLabel)}</button>`
                     : `<span class="ldxp-badge ldxp-connect-${escapeHtml(connectedKind)}">${escapeHtml(connectedLabel)}</span>`
-              }
-            </td>
-            <td>
-              ${
-                detailLink
-                  ? `<button class="ldxp-connect-action" data-action="viewDetail" data-id="${escapeHtml(id)}" title="弹窗查看商品详情">详情</button>`
-                  : `<span class="ldxp-badge">-</span>`
               }
             </td>
           </tr>
@@ -925,57 +908,6 @@
     `;
   }
 
-  const openDetailModal = (item) => {
-    if (!item) {
-      setStatus("没有找到要查看的商品", "error");
-      return;
-    }
-    const link = getDetailLink(item);
-    if (!link) {
-      setStatus("该商品没有可打开的详情链接", "error");
-      return;
-    }
-    state.detail.visible = true;
-    state.detail.item = item;
-    renderDetailModal();
-  };
-
-  const closeDetailModal = () => {
-    state.detail.visible = false;
-    state.detail.item = null;
-    renderDetailModal();
-  };
-
-  function renderDetailModal() {
-    if (!state.detail.visible || !state.detail.item) {
-      detailModalEl.hidden = true;
-      detailModalEl.innerHTML = "";
-      return;
-    }
-    const item = state.detail.item;
-    const link = getDetailLink(item);
-    const title = getProductTitle(item) || "-";
-    detailModalEl.hidden = false;
-    detailModalEl.innerHTML = `
-      <div class="ldxp-detail-backdrop" data-action="detailClose"></div>
-      <div class="ldxp-detail-card" role="dialog" aria-modal="true" aria-label="商品详情">
-        <div class="ldxp-detail-head">
-          <div>
-            <div class="ldxp-detail-title">商品详情</div>
-            <div class="ldxp-detail-subtitle" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
-          </div>
-          <div class="ldxp-detail-actions">
-            <a class="ldxp-detail-open" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" title="在新标签页打开">新窗口</a>
-            <button class="ldxp-icon-btn" data-action="detailClose" title="关闭">x</button>
-          </div>
-        </div>
-        <div class="ldxp-detail-body">
-          <iframe class="ldxp-detail-iframe" src="${escapeHtml(link)}" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-      </div>
-    `;
-  }
-
   connectModalEl.addEventListener("input", (event) => {
     const target = event.target instanceof HTMLElement ? event.target.closest("[data-connect-field]") : null;
     if (!target || !["add_rate", "add_price"].includes(target.dataset.connectField || "")) {
@@ -1052,10 +984,6 @@
       closeConnectModal();
     } else if (action === "connectSubmit") {
       submitConnect();
-    } else if (action === "viewDetail") {
-      openDetailModal(findItemById(actionTarget.dataset.id));
-    } else if (action === "detailClose") {
-      closeDetailModal();
     }
   });
 
